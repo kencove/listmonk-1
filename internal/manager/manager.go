@@ -39,7 +39,7 @@ type Store interface {
 	GetAttachment(mediaID int) (models.Attachment, error)
 	UpdateCampaignStatus(campID int, status string) error
 	UpdateCampaignCounts(campID int, toSend int, sent int, lastSubID int) error
-	CreateLink(url string) (string, error)
+	CreateLink(url string, metadata map[string]string) (string, error)
 	BlocklistSubscriber(id int64) error
 	DeleteSubscriber(id int64) error
 }
@@ -334,13 +334,20 @@ func (m *Manager) GetTpl(id int) (*models.Template, error) {
 // compiled campaign templates.
 func (m *Manager) TemplateFuncs(c *models.Campaign) template.FuncMap {
 	f := template.FuncMap{
-		"TrackLink": func(url string, msg *CampaignMessage) string {
+		"TrackLink": func(url string, msg *CampaignMessage, tags ...string) string {
 			subUUID := msg.Subscriber.UUID
 			if !m.cfg.IndividualTracking {
 				subUUID = dummyUUID
 			}
 
-			return m.trackLink(url, msg.Campaign.UUID, subUUID)
+			// Parse optional metadata tags from the variadic argument.
+			// Format: "key1:val1,key2:val2" e.g. "section:hero,cta:shop"
+			var metadata map[string]string
+			if len(tags) > 0 && tags[0] != "" {
+				metadata = parseLinkTags(tags[0])
+			}
+
+			return m.trackLink(url, msg.Campaign.UUID, subUUID, metadata)
 		},
 		"TrackView": func(msg *CampaignMessage) template.HTML {
 			subUUID := msg.Subscriber.UUID
@@ -559,7 +566,7 @@ func (m *Manager) getCurrentCampaigns() ([]int64, []int64) {
 
 // trackLink register a URL and return its UUID to be used in message templates
 // for tracking links.
-func (m *Manager) trackLink(url, campUUID, subUUID string) string {
+func (m *Manager) trackLink(url, campUUID, subUUID string, metadata map[string]string) string {
 	url = strings.ReplaceAll(url, "&amp;", "&")
 
 	m.linksMut.RLock()
@@ -569,8 +576,12 @@ func (m *Manager) trackLink(url, campUUID, subUUID string) string {
 	}
 	m.linksMut.RUnlock()
 
+	if metadata == nil {
+		metadata = map[string]string{}
+	}
+
 	// Register link.
-	uu, err := m.store.CreateLink(url)
+	uu, err := m.store.CreateLink(url, metadata)
 	if err != nil {
 		m.log.Printf("error registering tracking for link '%s': %v", url, err)
 
@@ -583,6 +594,23 @@ func (m *Manager) trackLink(url, campUUID, subUUID string) string {
 	m.linksMut.Unlock()
 
 	return fmt.Sprintf(m.cfg.LinkTrackURL, uu, campUUID, subUUID)
+}
+
+// parseLinkTags parses a comma-separated string of key:value pairs into a map.
+// e.g. "section:hero,cta:shop" -> {"section": "hero", "cta": "shop"}
+func parseLinkTags(tags string) map[string]string {
+	result := map[string]string{}
+	for _, pair := range strings.Split(tags, ",") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) == 2 {
+			result[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+	return result
 }
 
 // sendNotif sends a notification to registered admin e-mails.

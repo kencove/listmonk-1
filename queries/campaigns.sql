@@ -269,11 +269,141 @@ SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), crea
 -- name: get-campaign-link-counts
 -- raw: true
 -- %s = * or DISTINCT subscriber_id (prepared based on based on individual tracking=on/off). Prepared on boot.
-SELECT COUNT(%s) AS "count", url
+SELECT COUNT(%s) AS "count", url, links.metadata
     FROM link_clicks
     LEFT JOIN links ON (link_clicks.link_id = links.id)
     WHERE campaign_id=ANY($1) AND link_clicks.created_at >= $2 AND link_clicks.created_at <= $3
-    GROUP BY links.url ORDER BY "count" DESC LIMIT 50;
+    GROUP BY links.url, links.metadata ORDER BY "count" DESC LIMIT 50;
+
+-- name: get-campaign-link-counts-by-metadata
+-- Aggregate click counts grouped by link metadata tags for AI analysis.
+SELECT
+    key AS tag_key,
+    value AS tag_value,
+    COUNT(*) AS "count"
+FROM link_clicks,
+    LATERAL jsonb_each_text(link_clicks.metadata) AS t(key, value)
+WHERE campaign_id=ANY($1)
+    AND link_clicks.created_at >= $2
+    AND link_clicks.created_at <= $3
+    AND link_clicks.metadata != '{}'::jsonb
+GROUP BY key, value
+ORDER BY "count" DESC;
+
+-- name: get-campaign-analytics-summary
+-- Returns a comprehensive analytics summary for one or more campaigns.
+WITH camp_views AS (
+    SELECT campaign_id, COUNT(*) AS total_views,
+        COUNT(DISTINCT subscriber_id) AS unique_views
+    FROM campaign_views
+    WHERE campaign_id = ANY($1)
+    GROUP BY campaign_id
+),
+camp_clicks AS (
+    SELECT campaign_id, COUNT(*) AS total_clicks,
+        COUNT(DISTINCT subscriber_id) AS unique_clicks,
+        COUNT(DISTINCT link_id) AS unique_links_clicked
+    FROM link_clicks
+    WHERE campaign_id = ANY($1)
+    GROUP BY campaign_id
+),
+camp_bounces AS (
+    SELECT campaign_id, COUNT(*) AS total_bounces,
+        COUNT(CASE WHEN type = 'hard' THEN 1 END) AS hard_bounces,
+        COUNT(CASE WHEN type = 'soft' THEN 1 END) AS soft_bounces,
+        COUNT(CASE WHEN type = 'complaint' THEN 1 END) AS complaints
+    FROM bounces
+    WHERE campaign_id = ANY($1)
+    GROUP BY campaign_id
+)
+SELECT
+    c.id AS campaign_id,
+    c.name,
+    c.subject,
+    c.status,
+    c.to_send,
+    c.sent,
+    c.created_at,
+    c.started_at,
+    COALESCE(v.total_views, 0) AS total_views,
+    COALESCE(v.unique_views, 0) AS unique_views,
+    COALESCE(cl.total_clicks, 0) AS total_clicks,
+    COALESCE(cl.unique_clicks, 0) AS unique_clicks,
+    COALESCE(cl.unique_links_clicked, 0) AS unique_links_clicked,
+    COALESCE(b.total_bounces, 0) AS total_bounces,
+    COALESCE(b.hard_bounces, 0) AS hard_bounces,
+    COALESCE(b.soft_bounces, 0) AS soft_bounces,
+    COALESCE(b.complaints, 0) AS complaints,
+    -- Rates (as percentages, 0 if no sends)
+    CASE WHEN c.sent > 0 THEN ROUND(COALESCE(v.unique_views, 0)::NUMERIC / c.sent * 100, 2) ELSE 0 END AS open_rate,
+    CASE WHEN c.sent > 0 THEN ROUND(COALESCE(cl.unique_clicks, 0)::NUMERIC / c.sent * 100, 2) ELSE 0 END AS click_rate,
+    CASE WHEN COALESCE(v.unique_views, 0) > 0 THEN ROUND(COALESCE(cl.unique_clicks, 0)::NUMERIC / v.unique_views * 100, 2) ELSE 0 END AS click_to_open_rate,
+    CASE WHEN c.sent > 0 THEN ROUND(COALESCE(b.total_bounces, 0)::NUMERIC / c.sent * 100, 2) ELSE 0 END AS bounce_rate
+FROM campaigns c
+LEFT JOIN camp_views v ON v.campaign_id = c.id
+LEFT JOIN camp_clicks cl ON cl.campaign_id = c.id
+LEFT JOIN camp_bounces b ON b.campaign_id = c.id
+WHERE c.id = ANY($1)
+ORDER BY c.created_at DESC;
+
+-- name: get-subscriber-engagement
+-- Returns engagement history for a specific subscriber (for AI segmentation).
+WITH sub_views AS (
+    SELECT campaign_id, created_at AS event_at, 'view' AS event_type
+    FROM campaign_views
+    WHERE subscriber_id = $1
+),
+sub_clicks AS (
+    SELECT lc.campaign_id, lc.created_at AS event_at, 'click' AS event_type
+    FROM link_clicks lc
+    WHERE lc.subscriber_id = $1
+),
+all_events AS (
+    SELECT * FROM sub_views
+    UNION ALL
+    SELECT * FROM sub_clicks
+)
+SELECT
+    e.campaign_id,
+    c.name AS campaign_name,
+    c.subject AS campaign_subject,
+    e.event_type,
+    e.event_at
+FROM all_events e
+LEFT JOIN campaigns c ON c.id = e.campaign_id
+ORDER BY e.event_at DESC
+LIMIT 500;
+
+-- name: get-subscriber-engagement-score
+-- Computes an engagement score for a subscriber based on recent activity.
+WITH recent_views AS (
+    SELECT COUNT(*) AS cnt FROM campaign_views
+    WHERE subscriber_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
+),
+recent_clicks AS (
+    SELECT COUNT(*) AS cnt FROM link_clicks
+    WHERE subscriber_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
+),
+last_activity AS (
+    SELECT MAX(event_at) AS last_event FROM (
+        SELECT created_at AS event_at FROM campaign_views WHERE subscriber_id = $1
+        UNION ALL
+        SELECT created_at AS event_at FROM link_clicks WHERE subscriber_id = $1
+    ) events
+)
+SELECT
+    COALESCE((SELECT cnt FROM recent_views), 0) AS views_90d,
+    COALESCE((SELECT cnt FROM recent_clicks), 0) AS clicks_90d,
+    (SELECT last_event FROM last_activity) AS last_activity_at,
+    -- Score: clicks weighted 3x, views weighted 1x, recency bonus
+    COALESCE((SELECT cnt FROM recent_clicks), 0) * 3
+    + COALESCE((SELECT cnt FROM recent_views), 0)
+    + CASE
+        WHEN (SELECT last_event FROM last_activity) >= NOW() - INTERVAL '7 days' THEN 10
+        WHEN (SELECT last_event FROM last_activity) >= NOW() - INTERVAL '30 days' THEN 5
+        WHEN (SELECT last_event FROM last_activity) >= NOW() - INTERVAL '90 days' THEN 2
+        ELSE 0
+      END AS engagement_score;
 
 -- name: get-running-campaign
 -- Returns the metadata for a running campaign that is required by next-campaign-subscribers to retrieve

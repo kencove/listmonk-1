@@ -76,6 +76,56 @@ type CampaignAnalyticsCount struct {
 }
 
 type CampaignAnalyticsLink struct {
-	URL   string `db:"url" json:"url"`
-	Count int    `db:"count" json:"count"`
+	URL      string `db:"url" json:"url"`
+	Count    int    `db:"count" json:"count"`
+	Metadata JSON   `db:"metadata" json:"metadata"`
+}
+
+// CampaignAnalyticsTagCount represents click counts grouped by metadata tag key/value.
+type CampaignAnalyticsTagCount struct {
+	TagKey   string `db:"tag_key" json:"tag_key"`
+	TagValue string `db:"tag_value" json:"tag_value"`
+	Count    int    `db:"count" json:"count"`
+}
+
+// CampaignAnalyticsSummary represents a comprehensive analytics summary for a campaign.
+type CampaignAnalyticsSummary struct {
+	CampaignID         int       `db:"campaign_id" json:"campaign_id"`
+	Name               string    `db:"name" json:"name"`
+	Subject            string    `db:"subject" json:"subject"`
+	Status             string    `db:"status" json:"status"`
+	ToSend             int       `db:"to_send" json:"to_send"`
+	Sent               int       `db:"sent" json:"sent"`
+	CreatedAt          null.Time `db:"created_at" json:"created_at"`
+	StartedAt          null.Time `db:"started_at" json:"started_at"`
+	TotalViews         int       `db:"total_views" json:"total_views"`
+	UniqueViews        int       `db:"unique_views" json:"unique_views"`
+	TotalClicks        int       `db:"total_clicks" json:"total_clicks"`
+	UniqueClicks       int       `db:"unique_clicks" json:"unique_clicks"`
+	UniqueLinksClicked int       `db:"unique_links_clicked" json:"unique_links_clicked"`
+	TotalBounces       int       `db:"total_bounces" json:"total_bounces"`
+	HardBounces        int       `db:"hard_bounces" json:"hard_bounces"`
+	SoftBounces        int       `db:"soft_bounces" json:"soft_bounces"`
+	Complaints         int       `db:"complaints" json:"complaints"`
+	OpenRate           float64   `db:"open_rate" json:"open_rate"`
+	ClickRate          float64   `db:"click_rate" json:"click_rate"`
+	ClickToOpenRate    float64   `db:"click_to_open_rate" json:"click_to_open_rate"`
+	BounceRate         float64   `db:"bounce_rate" json:"bounce_rate"`
+}
+
+// SubscriberEngagementEvent represents a single engagement event for a subscriber.
+type SubscriberEngagementEvent struct {
+	CampaignID      int       `db:"campaign_id" json:"campaign_id"`
+	CampaignName    string    `db:"campaign_name" json:"campaign_name"`
+	CampaignSubject string    `db:"campaign_subject" json:"campaign_subject"`
+	EventType       string    `db:"event_type" json:"event_type"`
+	EventAt         null.Time `db:"event_at" json:"event_at"`
+}
+
+// SubscriberEngagementScore represents computed engagement metrics for a subscriber.
+type SubscriberEngagementScore struct {
+	Views90d        int       `db:"views_90d" json:"views_90d"`
+	Clicks90d       int       `db:"clicks_90d" json:"clicks_90d"`
+	LastActivityAt  null.Time `db:"last_activity_at" json:"last_activity_at"`
+	EngagementScore int       `db:"engagement_score" json:"engagement_score"`
 }
