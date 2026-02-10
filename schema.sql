@@ -474,3 +474,21 @@ CREATE TABLE ab_test_variants (
 );
 DROP INDEX IF EXISTS idx_ab_variants_test_id; CREATE INDEX idx_ab_variants_test_id ON ab_test_variants(ab_test_id);
 DROP INDEX IF EXISTS idx_ab_variants_campaign_id; CREATE INDEX idx_ab_variants_campaign_id ON ab_test_variants(campaign_id);
+
+-- Conversions (PostHog post-click tracking)
+DROP TABLE IF EXISTS conversions CASCADE;
+CREATE TABLE conversions (
+    id               BIGSERIAL PRIMARY KEY,
+    campaign_id      INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+    subscriber_id    INTEGER NOT NULL REFERENCES subscribers(id) ON DELETE CASCADE,
+    event_type       TEXT NOT NULL,
+    event_properties JSONB NOT NULL DEFAULT '{}',
+    revenue          NUMERIC(12,2) DEFAULT 0,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_conversions_campaign; CREATE INDEX idx_conversions_campaign ON conversions(campaign_id);
+DROP INDEX IF EXISTS idx_conversions_subscriber; CREATE INDEX idx_conversions_subscriber ON conversions(subscriber_id);
+DROP INDEX IF EXISTS idx_conversions_event_type; CREATE INDEX idx_conversions_event_type ON conversions(event_type);
+DROP INDEX IF EXISTS idx_conversions_created; CREATE INDEX idx_conversions_created ON conversions(created_at);
+DROP INDEX IF EXISTS idx_conversions_campaign_event; CREATE INDEX idx_conversions_campaign_event ON conversions(campaign_id, event_type);
+DROP INDEX IF EXISTS idx_conversions_subscriber_created; CREATE INDEX idx_conversions_subscriber_created ON conversions(subscriber_id, created_at DESC);

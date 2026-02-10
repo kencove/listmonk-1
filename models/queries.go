@@ -145,6 +145,13 @@ type Queries struct {
 	GetABTestResults             *sqlx.Stmt `query:"get-ab-test-results"`
 	DeleteABTest                 *sqlx.Stmt `query:"delete-ab-test"`
 
+	// Conversion tracking queries.
+	InsertConversion               *sqlx.Stmt `query:"insert-conversion"`
+	GetCampaignConversions         *sqlx.Stmt `query:"get-campaign-conversions"`
+	GetSubscriberConversions       *sqlx.Stmt `query:"get-subscriber-conversions"`
+	GetCampaignConversionSummary   *sqlx.Stmt `query:"get-campaign-conversion-summary"`
+	UpdateSubscriberPostHogAttribs *sqlx.Stmt `query:"update-subscriber-posthog-attribs"`
+
 	CreateRole            *sqlx.Stmt `query:"create-role"`
 	GetUserRoles          *sqlx.Stmt `query:"get-user-roles"`
 	GetListRoles          *sqlx.Stmt `query:"get-list-roles"`
