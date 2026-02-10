@@ -187,6 +187,11 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/api/ab-tests/:id/winner", pm(a.SelectABTestWinner, "campaigns:manage_all", "campaigns:manage"))
 		g.DELETE("/api/ab-tests/:id", pm(a.DeleteABTest, "campaigns:manage_all", "campaigns:manage"))
 
+		// Conversion tracking (PostHog).
+		g.GET("/api/campaigns/:id/conversions", pm(hasID(a.GetCampaignConversions), "campaigns:get_analytics"))
+		g.GET("/api/campaigns/:id/conversions/summary", pm(hasID(a.GetCampaignConversionSummary), "campaigns:get_analytics"))
+		g.GET("/api/subscribers/:id/conversions", pm(hasID(a.GetSubscriberConversions), "subscribers:get_all", "subscribers:get"))
+
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
@@ -241,6 +246,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 	{
 		// Public unauthenticated endpoints.
 		g := e.Group("")
+
+		// Public PostHog webhook endpoint (authenticated via shared secret header).
+		g.POST("/webhooks/service/posthog", a.PostHogWebhook)
 
 		if a.cfg.BounceWebhooksEnabled {
 			// Public bounce endpoints for webservices like SES.
