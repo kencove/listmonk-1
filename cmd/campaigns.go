@@ -627,6 +627,89 @@ func (a *App) GetCampaignViewAnalytics(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetCampaignAnalyticsSummary returns a comprehensive analytics summary for campaigns,
+// including open rates, click rates, bounce breakdown, and computed ratios.
+func (a *App) GetCampaignAnalyticsSummary(c echo.Context) error {
+	ids, err := parseStringIDs(c.Request().URL.Query()["id"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.errorInvalidIDs", "error", err.Error()))
+	}
+
+	if len(ids) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.missingFields", "name", "`id`"))
+	}
+
+	out, err := a.core.GetCampaignAnalyticsSummary(ids)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetCampaignLinkMetadataAnalytics returns click counts broken down by link metadata tags.
+func (a *App) GetCampaignLinkMetadataAnalytics(c echo.Context) error {
+	ids, err := parseStringIDs(c.Request().URL.Query()["id"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.errorInvalidIDs", "error", err.Error()))
+	}
+
+	if len(ids) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.missingFields", "name", "`id`"))
+	}
+
+	var (
+		from = c.QueryParams().Get("from")
+		to   = c.QueryParams().Get("to")
+	)
+	if !strHasLen(from, 10, 30) || !strHasLen(to, 10, 30) {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("analytics.invalidDates"))
+	}
+
+	out, err := a.core.GetCampaignAnalyticsLinksByMetadata(ids, from, to)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetSubscriberEngagement returns the engagement event history for a subscriber.
+func (a *App) GetSubscriberEngagement(c echo.Context) error {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id < 1 {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidID"))
+	}
+
+	out, err := a.core.GetSubscriberEngagement(id)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetSubscriberEngagementScore returns the computed engagement score for a subscriber.
+func (a *App) GetSubscriberEngagementScore(c echo.Context) error {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id < 1 {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidID"))
+	}
+
+	out, err := a.core.GetSubscriberEngagementScore(id)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // sendTestMessage takes a campaign and a subscriber and sends out a sample campaign message.
 func (a *App) sendTestMessage(sub models.Subscriber, camp *models.Campaign) error {
 	if err := camp.CompileTemplate(a.manager.TemplateFuncs(camp)); err != nil {

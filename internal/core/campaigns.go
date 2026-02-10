@@ -469,3 +469,50 @@ func (c *Core) DeleteCampaignLinkClicks(before time.Time) error {
 
 	return nil
 }
+
+// GetCampaignAnalyticsLinksByMetadata returns link click counts grouped by metadata tag for AI analysis.
+func (c *Core) GetCampaignAnalyticsLinksByMetadata(campIDs []int, fromDate, toDate string) ([]models.CampaignAnalyticsTagCount, error) {
+	out := []models.CampaignAnalyticsTagCount{}
+	if err := c.q.GetCampaignLinkCountsByMetadata.Select(&out, pq.Array(campIDs), fromDate, toDate); err != nil {
+		c.log.Printf("error fetching campaign link metadata analytics: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// GetCampaignAnalyticsSummary returns a comprehensive analytics summary for one or more campaigns.
+func (c *Core) GetCampaignAnalyticsSummary(campIDs []int) ([]models.CampaignAnalyticsSummary, error) {
+	out := []models.CampaignAnalyticsSummary{}
+	if err := c.q.GetCampaignAnalyticsSummary.Select(&out, pq.Array(campIDs)); err != nil {
+		c.log.Printf("error fetching campaign analytics summary: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// GetSubscriberEngagement returns engagement event history for a subscriber.
+func (c *Core) GetSubscriberEngagement(subID int) ([]models.SubscriberEngagementEvent, error) {
+	out := []models.SubscriberEngagementEvent{}
+	if err := c.q.GetSubscriberEngagement.Select(&out, subID); err != nil {
+		c.log.Printf("error fetching subscriber engagement: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// GetSubscriberEngagementScore returns the computed engagement score for a subscriber.
+func (c *Core) GetSubscriberEngagementScore(subID int) (models.SubscriberEngagementScore, error) {
+	var out models.SubscriberEngagementScore
+	if err := c.q.GetSubscriberEngagementScore.Get(&out, subID); err != nil {
+		if err == sql.ErrNoRows {
+			return out, nil
+		}
+		c.log.Printf("error fetching subscriber engagement score: %v", err)
+		return out, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}

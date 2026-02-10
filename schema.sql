@@ -200,8 +200,10 @@ CREATE TABLE links (
     id               SERIAL PRIMARY KEY,
     uuid uuid        NOT NULL UNIQUE,
     url              TEXT NOT NULL UNIQUE,
+    metadata         JSONB NOT NULL DEFAULT '{}',
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_links_metadata ON links USING GIN (metadata);
 
 DROP TABLE IF EXISTS link_clicks CASCADE;
 CREATE TABLE link_clicks (
@@ -211,6 +213,7 @@ CREATE TABLE link_clicks (
 
     -- Subscribers may be deleted, but the link counts should remain.
     subscriber_id    INTEGER NULL REFERENCES subscribers(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    metadata         JSONB NOT NULL DEFAULT '{}',
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_clicks_camp_id; CREATE INDEX idx_clicks_camp_id ON link_clicks(campaign_id);

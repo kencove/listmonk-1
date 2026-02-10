@@ -41,6 +41,13 @@ type regTplFunc struct {
 }
 
 var regTplFuncs = []regTplFunc{
+	// {{ TrackLink "url" "section:hero,cta:shop" }} -> {{ TrackLink "url" . "section:hero,cta:shop" }}
+	// With metadata tags (must come before the no-tags version).
+	{
+		regExp:  regexp.MustCompile(`{{\s*TrackLink\s+"([^"]+)"\s+"([^"]+)"\s*}}`),
+		replace: `{{ TrackLink "$1" . "$2" }}`,
+	},
+
 	// Regular expression for matching {{ TrackLink "http://link.com" }} in the template
 	// and substituting it with {{ TrackLink "http://link.com" . }} (the dot context)
 	// before compilation. This is to make linking easier for users.
