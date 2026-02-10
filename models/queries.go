@@ -133,6 +133,18 @@ type Queries struct {
 	GetAPITokens      *sqlx.Stmt `query:"get-api-tokens"`
 	LoginUser         *sqlx.Stmt `query:"login-user"`
 
+	// A/B testing queries.
+	CreateABTest                 *sqlx.Stmt `query:"create-ab-test"`
+	GetABTests                   *sqlx.Stmt `query:"get-ab-tests"`
+	GetABTest                    *sqlx.Stmt `query:"get-ab-test"`
+	CreateABTestVariant          *sqlx.Stmt `query:"create-ab-test-variant"`
+	UpdateABTestVariantList      *sqlx.Stmt `query:"update-ab-test-variant-list"`
+	UpdateABTestStatus           *sqlx.Stmt `query:"update-ab-test-status"`
+	UpdateABTestWinner           *sqlx.Stmt `query:"update-ab-test-winner"`
+	UpdateABTestTotalSubscribers *sqlx.Stmt `query:"update-ab-test-total-subscribers"`
+	GetABTestResults             *sqlx.Stmt `query:"get-ab-test-results"`
+	DeleteABTest                 *sqlx.Stmt `query:"delete-ab-test"`
+
 	CreateRole            *sqlx.Stmt `query:"create-role"`
 	GetUserRoles          *sqlx.Stmt `query:"get-user-roles"`
 	GetListRoles          *sqlx.Stmt `query:"get-list-roles"`

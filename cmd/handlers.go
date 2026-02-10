@@ -178,6 +178,15 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/campaigns", pm(a.DeleteCampaigns, "campaigns:manage", "campaigns:manage_all"))
 		g.DELETE("/api/campaigns/:id", pm(hasID(a.DeleteCampaign), "campaigns:manage_all", "campaigns:manage"))
 
+		// A/B testing.
+		g.GET("/api/ab-tests", pm(a.GetABTests, "campaigns:get_analytics"))
+		g.GET("/api/ab-tests/:id", pm(a.GetABTest, "campaigns:get_analytics"))
+		g.GET("/api/ab-tests/:id/results", pm(a.GetABTestResults, "campaigns:get_analytics"))
+		g.POST("/api/ab-tests", pm(a.CreateABTest, "campaigns:manage_all", "campaigns:manage"))
+		g.PUT("/api/ab-tests/:id/start", pm(a.StartABTest, "campaigns:manage_all", "campaigns:manage"))
+		g.PUT("/api/ab-tests/:id/winner", pm(a.SelectABTestWinner, "campaigns:manage_all", "campaigns:manage"))
+		g.DELETE("/api/ab-tests/:id", pm(a.DeleteABTest, "campaigns:manage_all", "campaigns:manage"))
+
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
