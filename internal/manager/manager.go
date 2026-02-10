@@ -6,6 +6,8 @@ import (
 	"html/template"
 	"log"
 	"net/textproto"
+	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -580,8 +582,12 @@ func (m *Manager) trackLink(url, campUUID, subUUID string, metadata map[string]s
 		metadata = map[string]string{}
 	}
 
-	// Register link.
-	uu, err := m.store.CreateLink(url, metadata)
+	// Inject UTM parameters into the destination URL for PostHog attribution.
+	// Use the original URL as the cache key to avoid cache misses on repeated lookups.
+	destURL := injectUTMParams(url, campUUID, metadata)
+
+	// Register link with UTM-injected destination URL.
+	uu, err := m.store.CreateLink(destURL, metadata)
 	if err != nil {
 		m.log.Printf("error registering tracking for link '%s': %v", url, err)
 
@@ -589,6 +595,7 @@ func (m *Manager) trackLink(url, campUUID, subUUID string, metadata map[string]s
 		return url
 	}
 
+	// Cache using the original URL as key so subsequent lookups hit.
 	m.linksMut.Lock()
 	m.links[url] = uu
 	m.linksMut.Unlock()
@@ -611,6 +618,35 @@ func parseLinkTags(tags string) map[string]string {
 		}
 	}
 	return result
+}
+
+// injectUTMParams appends UTM parameters to a URL for PostHog/analytics attribution.
+// Existing UTM params on the URL are preserved.
+func injectUTMParams(rawURL, campUUID string, metadata map[string]string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	if q.Get("utm_source") == "" {
+		q.Set("utm_source", "listmonk")
+	}
+	if q.Get("utm_medium") == "" {
+		q.Set("utm_medium", "email")
+	}
+	if q.Get("utm_campaign") == "" {
+		q.Set("utm_campaign", campUUID)
+	}
+	if q.Get("utm_content") == "" && len(metadata) > 0 {
+		parts := make([]string, 0, len(metadata))
+		for k, v := range metadata {
+			parts = append(parts, k+"_"+v)
+		}
+		sort.Strings(parts)
+		q.Set("utm_content", strings.Join(parts, "_"))
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // sendNotif sends a notification to registered admin e-mails.

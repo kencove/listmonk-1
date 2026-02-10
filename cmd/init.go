@@ -146,6 +146,8 @@ type Config struct {
 	BouncePostmarkEnabled     bool
 	BounceForwardemailEnabled bool
 
+	PostHogWebhookSecret string
+
 	PermissionsRaw json.RawMessage
 	Permissions    map[string]struct{}
 }
@@ -484,6 +486,7 @@ func initConstConfig(ko *koanf.Koanf) *Config {
 	c.BounceSendgridEnabled = ko.Bool("bounce.sendgrid_enabled")
 	c.BouncePostmarkEnabled = ko.Bool("bounce.postmark.enabled")
 	c.BounceForwardemailEnabled = ko.Bool("bounce.forwardemail.enabled")
+	c.PostHogWebhookSecret = ko.String("posthog.webhook_secret")
 	c.HasLegacyUser = ko.Exists("app.admin_username") || ko.Exists("app.admin_password")
 
 	b := md5.Sum([]byte(time.Now().String()))

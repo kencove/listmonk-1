@@ -143,6 +143,8 @@ type Settings struct {
 		ScanInterval  string `json:"scan_interval"`
 	} `json:"bounce.mailboxes"`
 
+	PostHogWebhookSecret string `json:"posthog.webhook_secret"`
+
 	MaintenanceDB struct {
 		Vacuum         bool   `json:"vacuum"`
 		VacuumInterval string `json:"vacuum_cron_interval"`
