@@ -104,6 +104,12 @@ type Queries struct {
 	CreateLink        *sqlx.Stmt `query:"create-link"`
 	RegisterLinkClick *sqlx.Stmt `query:"register-link-click"`
 
+	// Analytics queries for AI-driven analysis.
+	GetCampaignLinkCountsByMetadata *sqlx.Stmt `query:"get-campaign-link-counts-by-metadata"`
+	GetCampaignAnalyticsSummary     *sqlx.Stmt `query:"get-campaign-analytics-summary"`
+	GetSubscriberEngagement         *sqlx.Stmt `query:"get-subscriber-engagement"`
+	GetSubscriberEngagementScore    *sqlx.Stmt `query:"get-subscriber-engagement-score"`
+
 	GetSettings         *sqlx.Stmt `query:"get-settings"`
 	UpdateSettings      *sqlx.Stmt `query:"update-settings"`
 	UpdateSettingsByKey *sqlx.Stmt `query:"update-settings-by-key"`

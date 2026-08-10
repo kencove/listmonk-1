@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+
 	"github.com/gofrs/uuid/v5"
 	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/manager"
@@ -105,7 +107,8 @@ func (s *store) GetAttachment(mediaID int) (models.Attachment, error) {
 }
 
 // CreateLink registers a URL with a UUID for tracking clicks and returns the UUID.
-func (s *store) CreateLink(url string) (string, error) {
+// metadata is a JSON object of key-value tags for per-link attribution (e.g. {"section": "hero", "cta": "shop"}).
+func (s *store) CreateLink(url string, metadata map[string]string) (string, error) {
 	// Create a new UUID for the URL. If the URL already exists in the DB
 	// the UUID in the database is returned.
 	uu, err := uuid.NewV4()
@@ -113,8 +116,14 @@ func (s *store) CreateLink(url string) (string, error) {
 		return "", err
 	}
 
+	// Default to empty JSON if no metadata.
+	meta, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+
 	var out string
-	if err := s.queries.CreateLink.Get(&out, uu, url); err != nil {
+	if err := s.queries.CreateLink.Get(&out, uu, url, meta); err != nil {
 		return "", err
 	}
 
